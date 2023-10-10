@@ -1,0 +1,350 @@
+<template>
+	<view class="flex-col">
+		<view class="header flex-col">
+			<view class="" style="height: 60rpx;background-color: #000;">
+				
+			</view>
+			<view class="" style="">
+				<myVideoPlayer
+					ref="myVideo"
+					:videoTitle="videoTile"
+					:videoList="videoList"
+					:type="type"
+					:pwd="pwd"
+					v-model="currentJuJi"
+				></myVideoPlayer>
+			</view>
+		</view>
+		
+		<view class="center flex-col">
+			<view class="">
+				<scroll-view
+					class="tabMain flex-col"
+					:show-scrollbar="false" 
+					:scroll-x="true" 
+					:scroll-into-view="tabScrollInto">
+					<view
+						class="tabContent flex-col"
+						style="width: 750rpx;background-color: #fff;border-bottom: 1px solid #e7e7e7;">
+						<view class="flex-row">
+							<view class="tabItem flex-row" 
+								v-for="(tab, tabItemIndex) in myclass" 
+								:id="'tabb' + tabItemIndex" 
+								:data-id="tabItemIndex"
+								@click="pressScrollViewItem(tabItemIndex)"
+								style=""
+								>
+								<view class="flex-row" style="padding: 0 20rpx;height: 70rpx;">
+									<text
+										class="tabItemTitle"
+										:class="tabIndex==tabItemIndex ? 'tabItemTitleActive' : ''"
+										style="line-height: 70rpx;">
+										{{tab.name}}
+									</text>
+									<text
+										v-if="tab.tip"
+										:class="tabIndex==tabItemIndex ? 'tabItemTitleActive' : ''"
+										style="font-size: 11px;line-height: 70rpx;padding-left: 3rpx;">
+										{{tab.tip}}
+									</text>
+								</view>
+							</view>
+						</view>
+						
+						<view class="tabLineView flex-row">
+							<view class="tabLine tabLineActive"
+								:style="{
+									left: `${tabItemLineLeft}px`,
+									width: `${tabItemLineWidth}px`,
+								}"
+							>
+							</view>
+						</view>
+					</view>
+				</scroll-view>
+				
+				<swiper
+					class="childPageView"
+					:current="tabIndex"
+					:duration="100"
+					@change="swiperChange"
+					:style="{height: swiperHeight +'rpx'}">
+					<swiper-item class="childPageViewItem flex-col" v-for="(page,childPageViewItemIndex) in myclass" :key="childPageViewItemIndex">
+						<scroll-view
+							class="flex-col"
+							style="padding: 30rpx 20rpx;"
+							:scroll-y="true"
+							:style="{height: swiperHeight +'rpx'}"
+							lower-threshold="300">
+							
+							<view class="flex-col" v-if="tabIndex==0">
+								<view class="">
+									<text style="font-weight: 600;font-size: 18px;">{{videoInfo['name']}}</text>
+								</view>
+								<view class="flex-row justify-between" style="margin-top: 15rpx;">
+									<view class="">
+										<text class="line_1" style="font-size: 12px;">{{videoInfo['pan_type']}}</text>
+									</view>
+									<view class="flex-row" @tap="openDetail">
+										<text style="font-size: 12px;">详情</text>
+										<u-icon name="arrow-right" size="14"></u-icon>
+									</view>
+								</view>
+								<!-- 选集 -->
+								<view class="">
+									<view class="flex-row justify-between" style="margin-top: 30rpx;">
+										<view class="">
+											<text style="font-size: 14px;">选集</text>
+										</view>
+										<view class="">
+											<u-icon name="arrow-right" size="14"></u-icon>
+										</view>
+									</view>
+									<view class="" style="margin-top: 15rpx;">
+										<scroll-view 
+											class="flex-row"
+											style="position: relative;left: -10rpx;"
+											:scroll-x="true"
+											:show-scrollbar="false">
+											<view v-for="(vod,index) in videoList" @tap="chooseJuJi(index)">
+												<view class="" v-if="vod && vod['ifShow']"
+													style="margin: 0 10rpx;padding: 30rpx 60rpx;border-radius: 10rpx;background-color: #f0f1f3;">
+													<view style="width: 200rpx;">
+														<text v-if="type=='0'" :style="{color: currentJuJi==index ? '#FB7299' : '#000'}" style="font-size: 13px;text-align: center;">{{vod['name']}}</text>
+														<text v-if="type=='1'" :style="{color: currentJuJi==index ? '#FB7299' : '#000'}" style="font-size: 13px;text-align: center;">{{vod['fileName']}}</text>
+													</view>
+												</view>
+											</view>
+										</scroll-view>
+									</view>
+								</view>
+							</view>
+							
+							<view class="flex-col" v-if="tabIndex==1">
+								评论区
+							</view>
+							
+						</scroll-view>
+					</swiper-item>
+				</swiper>
+			</view>
+		</view>
+		
+		<view class="bottom">
+			
+		</view>
+	</view>
+</template>
+
+<script>
+	export default {
+		data() {
+			return {
+				currentJuJi: 0,
+				type: '',
+				pwd: '',
+				videoTile: '观影愉快',
+				vod_play_list: [],
+				videoInfo: {},
+				videoList: [],
+				tabIndex: 0,
+				tabScrollInto:'',
+				tabItemLineLeft: 0,
+				tabItemLineWidth: 24,
+				windowHeight:0,
+				windowWidth:0,
+				tabListSize:[],
+				swiperHeight: 0,
+				myclass: [
+					{
+						name: '简介'
+					},
+					{
+						name: '评论',
+						tip: '1.7亿'
+					}
+				]
+			};
+		},
+		onLoad(option) {
+			this.currentJuJi = option.index
+			this.type = option.type
+			this.pwd = option.pwd
+			
+			let system = uni.getSystemInfoSync();
+			this.windowHeight = system.windowHeight;
+			this.windowWidth = system.windowWidth;
+			var rpx = this.windowWidth / 750;
+			this.swiperHeight = this.windowHeight / rpx - 610;
+			this.jcsetTabItemDistance()
+			this.id = option.id
+			this.getVideoInfo()
+		},
+		onShow() {
+			if (this.$refs.myVideo) {
+				this.$refs.myVideo.videoPlay()
+			}
+		},
+		methods: {
+			openDetail() {
+				
+			},
+			// 选集
+			chooseJuJi(index) {
+				if (this.videoList && this.videoList[index]) {
+					this.currentJuJi = index
+				}
+			},
+			// 返回上一页
+			goBack() {
+				uni.navigateBack()
+			},
+			getVideoInfo() {
+				uni.getStorage({
+					key: 'fileList',
+					success:res=>{
+						var arr = []
+						if (this.type == '0') {
+							for (var i=0;i<res.data.length;i++) {
+								e = res.data[i]
+								res.data[i]['ifShow'] = false
+								if (e['category']) {
+									if (e['category']=='video') {
+										res.data[i]['ifShow'] = true
+									}
+								}
+							}
+						}
+						if (this.type == '1'){
+							for (var i=0;i<res.data.length;i++) {
+								e = res.data[i]
+								res.data[i]['ifShow'] = false
+								if (e['suffix']) {
+									if (e['suffix']=='mp4' || e['suffix']=='mkv') {
+										res.data[i]['ifShow'] = true
+									}
+								}
+							}
+						}
+						this.videoList = res.data
+					}
+				})
+				uni.getStorage({
+					key: 'fileInfo',
+					success:res=>{
+						this.videoInfo = res.data
+					}
+				})
+			},
+			swiperChange(e) {
+				let index = e.detail.current
+				this.setTabSelect(index)
+				this.setTabItemLinePosition(this.tabListSize[this.tabIndex].left, this.tabListSize[this.tabIndex].width);
+			},
+			pressScrollViewItem(index) {
+				this.setTabSelect(index);
+			},
+			jcsetTabItemDistance() {
+				var queryTabSize = uni.createSelectorQuery().in(this);
+				var timer = setInterval(res=>{
+					queryTabSize.select('#tabb' + (this.myclass.length-1)).boundingClientRect(data => {
+						if (data) {
+							clearInterval(timer);
+							this.setTabItemDistance()
+						}
+					}).exec()
+				}, 100)
+			},
+			setTabItemDistance() {
+				var queryTabSize = uni.createSelectorQuery().in(this);
+				for (var i = 0; i < this.myclass.length; i++) {
+					queryTabSize.select('#tabb' + [i]).boundingClientRect()
+				}
+				queryTabSize.exec(rects => {
+					rects.forEach((rect) => {
+						this.tabListSize[rect.dataset.id] = rect
+					})
+					this.setTabItemLinePosition(this.tabListSize[this.tabIndex].left, this.tabListSize[this.tabIndex].width);
+				});
+			},
+			setTabItemLinePosition(left, width) {
+				this.tabItemLineLeft = left + width/2 - 12
+			},
+			setTabSelect(index) {
+				this.tabScrollInto = 'tabb' + index;
+				this.tabIndex = index;
+			},
+		}
+	}
+</script>
+
+<style lang="scss" scoped>
+	
+	.tabMain {
+		width: 750rpx;
+		display: flex;
+		flex-direction: row;
+		white-space: nowrap;
+	}
+	.tab {
+		width: 750rpx;
+		display: flex;
+		flex-direction: row;
+		white-space: nowrap;
+	}
+	
+	/* 隐藏滚动条 */
+	
+	.tab ::-webkit-scrollbar {
+		display: none;
+		width: 0 !important;
+		height: 0 !important;
+		-webkit-appearance: none;
+		background: transparent;
+	}
+	
+	.tabLineView {
+		position: relative;
+		height: 2px;
+	}
+	
+	.tabLine {
+		position: absolute;
+		height: 2px;
+		top: 0;
+		bottom: 0;
+		width: 0;
+		background-color: #FB7299;
+	}
+	
+	.tabLineActive {
+		transition-duration: 0.2s;
+		transition-property: left;
+	}
+	
+	.childPageView {
+		display: flex;
+		flex-direction: column;
+	}
+	
+	.tabItemTitle {
+		color: #505050;
+		font-size: 14px;
+		height: 50rpx;
+		line-height: 50rpx;
+		display: flex;
+		flex-wrap: nowrap;
+		align-items: center;
+		justify-content: center;
+	}
+	
+	.tabItemTitleActive {
+		color: #FB7299;
+	}
+	
+	.childPageViewItem {
+		flex: 1;
+		flex-direction: column;
+		margin-top: 10rpx;
+	}
+</style>
